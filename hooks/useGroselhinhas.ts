@@ -382,15 +382,18 @@ export const useGroselhinhas = () => {
 
         let moviePromise = Promise.resolve({ results: [], total_pages: 0 });
         let seriesPromise = Promise.resolve({ results: [], total_pages: 0 });
-
-        const baseParams = `api_key=${API_KEY}&language=pt-BR&page=${currentPage}&region=BR&sort_by=popularity.desc&vote_count.gte=100`;
+        
+        const today = new Date().toISOString().split('T')[0];
         const filterParams = `${providers ? `&with_watch_providers=${providers}&watch_region=BR` : ''}${genres ? `&with_genres=${genres}`: ''}${minRating > 0 ? `&vote_average.gte=${minRating}` : ''}`;
+        const commonParams = `api_key=${API_KEY}&language=pt-BR&page=${currentPage}&region=BR&vote_count.gte=100`;
 
         if (typeFilter !== 'Series') {
-            moviePromise = fetch(`${API_BASE_URL}/discover/movie?${baseParams}${filterParams}`, { referrerPolicy: 'no-referrer' }).then(res => res.json());
+            const movieParams = `${commonParams}&sort_by=primary_release_date.desc&primary_release_date.lte=${today}`;
+            moviePromise = fetch(`${API_BASE_URL}/discover/movie?${movieParams}${filterParams}`, { referrerPolicy: 'no-referrer' }).then(res => res.json());
         }
         if (typeFilter !== 'Movie') {
-            seriesPromise = fetch(`${API_BASE_URL}/discover/tv?${baseParams}${filterParams}`, { referrerPolicy: 'no-referrer' }).then(res => res.json());
+            const seriesParams = `${commonParams}&sort_by=first_air_date.desc&first_air_date.lte=${today}`;
+            seriesPromise = fetch(`${API_BASE_URL}/discover/tv?${seriesParams}${filterParams}`, { referrerPolicy: 'no-referrer' }).then(res => res.json());
         }
 
         try {
@@ -398,6 +401,15 @@ export const useGroselhinhas = () => {
             const combined = [...(movieData.results || []), ...(seriesData.results || [])];
 
             const transformed = combined.map(item => transformTmdbItem(item, false, allGenres));
+            
+            transformed.sort((a, b) => {
+              if (a.releaseDate && b.releaseDate) {
+                return b.releaseDate.localeCompare(a.releaseDate);
+              }
+              if (!a.releaseDate) return 1;
+              if (!b.releaseDate) return -1;
+              return 0;
+            });
 
             setMovies(transformed);
             setAllLoadedMovies(prevMap => {
@@ -741,7 +753,18 @@ export const useGroselhinhas = () => {
       moviesToDisplay = baseData.filter(movie => movie.ratings.imdb > 0);
     }
 
-    return [...moviesToDisplay].sort((a, b) => (b.ratings.imdb || 0) - (a.ratings.imdb || 0));
+    if (searchTerm) {
+      return moviesToDisplay; // Do not sort search results, keep relevance from API
+    }
+
+    return [...moviesToDisplay].sort((a, b) => {
+      if (a.releaseDate && b.releaseDate) {
+        return b.releaseDate.localeCompare(a.releaseDate);
+      }
+      if (a.releaseDate) return -1;
+      if (b.releaseDate) return 1;
+      return 0;
+    });
 
   }, [movies, allLoadedMovies, watchlist, isWatchlistMode, watchedList, isWatchedMode, searchTerm, searchResults, notInterestedList, isNotInterestedMode]);
 
