@@ -134,7 +134,8 @@ const transformTmdbItem = (item: any, isTrending: boolean = false, genresList: G
 
 export const useGroselhinhas = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [allLoadedMovies, setAllLoadedMovies] = useState<Map<number, Movie>>(new Map());
+  // Use explicit generic for the Map state to avoid type inference issues
+  const [allLoadedMovies, setAllLoadedMovies] = useState<Map<number, Movie>>(new Map<number, Movie>());
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [allGenres, setAllGenres] = useState<Genre[]>([]);
@@ -260,7 +261,8 @@ export const useGroselhinhas = () => {
     }
 
     // Immediately present the best available data.
-    const cachedMovie = allLoadedMovies.get(movie.id);
+    // Explicit type to fix "Property 'detailsFetched' does not exist on type 'unknown'"
+    const cachedMovie: Movie | undefined = allLoadedMovies.get(movie.id);
     _setSelectedMovie(cachedMovie || movie);
 
     // Show loading skeleton only if we don't have detailed data cached.
@@ -494,9 +496,10 @@ export const useGroselhinhas = () => {
         currentMovies.map(m => providerMap.has(m.id) ? updateMovieWithProviders(m) : m)
       );
       
-      setAllLoadedMovies(currentCache => {
-        const newCache = new Map(currentCache);
-        newCache.forEach((movie, id) => {
+      setAllLoadedMovies((currentCache: Map<number, Movie>) => {
+        const newCache = new Map<number, Movie>(currentCache);
+        // Explicit types for forEach to avoid unknown errors
+        newCache.forEach((movie: Movie, id: number) => {
             if(providerMap.has(id)){
                newCache.set(id, updateMovieWithProviders(movie));
             }
@@ -558,9 +561,10 @@ export const useGroselhinhas = () => {
                 currentMovies.map(m => fetchingIds.has(m.id) ? updateMovieWithRating(m) : m)
             );
 
-            setAllLoadedMovies(currentCache => {
-                const newCache = new Map(currentCache);
-                fetchingIds.forEach(id => {
+            setAllLoadedMovies((currentCache: Map<number, Movie>) => {
+                const newCache = new Map<number, Movie>(currentCache);
+                // Explicit type for fetchingIds iterator to avoid unknown id error
+                fetchingIds.forEach((id: number) => {
                     const movie = newCache.get(id);
                     if (movie) {
                         newCache.set(id, updateMovieWithRating(movie));
@@ -738,11 +742,12 @@ export const useGroselhinhas = () => {
     if (searchTerm) {
         baseData = searchResults;
     } else if (isWatchlistMode) {
-      baseData = Array.from(allLoadedMovies.values()).filter(movie => watchlist.has(movie.id));
+      // Explicit generic to fix unknown mapping error
+      baseData = Array.from<Movie>(allLoadedMovies.values()).filter((movie: Movie) => watchlist.has(movie.id));
     } else if (isWatchedMode) {
-      baseData = Array.from(allLoadedMovies.values()).filter(movie => watchedList.has(movie.id));
+      baseData = Array.from<Movie>(allLoadedMovies.values()).filter((movie: Movie) => watchedList.has(movie.id));
     } else if (isNotInterestedMode) {
-        baseData = Array.from(allLoadedMovies.values()).filter(movie => notInterestedList.has(movie.id));
+        baseData = Array.from<Movie>(allLoadedMovies.values()).filter((movie: Movie) => notInterestedList.has(movie.id));
     } else {
       baseData = movies.filter(movie => !watchedList.has(movie.id) && !notInterestedList.has(movie.id) && !movie.isTrending);
     }
