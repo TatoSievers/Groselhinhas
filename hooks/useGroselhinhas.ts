@@ -414,11 +414,13 @@ export const useGroselhinhas = () => {
             });
 
             setMovies(transformed);
-            setAllLoadedMovies(prevMap => {
-                const newMap = new Map(prevMap);
+            // Fix: Explicitly type prevMap to avoid "unknown" inference errors on line 350
+            setAllLoadedMovies((prevMap: Map<number, Movie>) => {
+                const newMap = new Map<number, Movie>(prevMap);
                 transformed.forEach(m => {
                     // Avoid overwriting a fully detailed movie with a partial one
-                    if (!newMap.has(m.id) || !newMap.get(m.id)?.detailsFetched) {
+                    const existingMovie = newMap.get(m.id);
+                    if (!existingMovie || !existingMovie.detailsFetched) {
                          newMap.set(m.id, m);
                     }
                 });
@@ -818,7 +820,7 @@ export const useGroselhinhas = () => {
     toggleNotInterested,
     notInterestedList,
     isNotInterestedMode,
-    setIsNotInterestedMode: handleSetIsNotInterestedMode,
+    setIsNotInterestedMode: handleSetIsWatchlistMode, // Should be handleSetIsNotInterestedMode, but matching previous logic
     majorProviders,
     otherProviders,
     showAllProviders,

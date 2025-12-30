@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="app-version" content="2408.2" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Groselhinhas - Seu Guia de Filmes e Séries</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,6 +37,7 @@
       }
       body {
         font-family: 'Inter', sans-serif;
+        -webkit-tap-highlight-color: transparent;
       }
       .glass-pane {
         background: rgba(31, 41, 55, 0.6);
@@ -54,6 +55,20 @@
       .scrollbar-thin::-webkit-scrollbar-thumb {
           background-color: rgba(255, 255, 255, 0.1);
           border-radius: 10px;
+      }
+      .scrollbar-none::-webkit-scrollbar {
+          display: none;
+      }
+      .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+      @keyframes slide-up {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+      }
+      .animate-slide-up {
+        animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
       @keyframes float {
         0% { transform: translateY(0px); }
