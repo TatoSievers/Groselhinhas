@@ -48,7 +48,7 @@ export interface Movie {
   inTheaters?: boolean;
   isTrending?: boolean;
   imdbId: string | null;
-  
+
   // New detailed fields
   genres: Genre[];
   cast: Person[];
@@ -57,4 +57,5 @@ export interface Movie {
   detailsFetched?: boolean;
   providersFetched?: boolean;
   imdbRatingFetched?: boolean;
+  videosFetched?: boolean;
 }
