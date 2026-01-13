@@ -17,6 +17,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = (props) => {
   const { user, signInWithGoogle, logout } = useAuth();
 
+  const handleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Failed to sign in", error);
+    }
+  };
+
   return (
     <header className="glass-pane sticky top-0 z-40 border-b border-white/5 bg-brand-background/80 backdrop-blur-xl">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
@@ -55,6 +63,9 @@ export const Header: React.FC<HeaderProps> = (props) => {
                   {user.displayName?.[0] || 'U'}
                 </div>
               )}
+              <span className="text-sm font-semibold text-white hidden sm:block">
+                {user.displayName?.split(' ')[0] || 'Usuário'}
+              </span>
               <button
                 onClick={logout}
                 className="text-xs font-bold text-gray-400 hover:text-white uppercase tracking-wider transition-colors"
@@ -65,7 +76,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
             </div>
           ) : (
             <button
-              onClick={signInWithGoogle}
+              onClick={handleSignIn}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black font-bold text-xs uppercase tracking-wide hover:bg-gray-200 transition-colors shadow-lg shadow-white/5"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

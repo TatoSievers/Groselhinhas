@@ -153,7 +153,7 @@ export const useGroselhinhas = () => {
     newWatched: Set<number>,
     newNotInterested: Set<number>
   ) => {
-    if (!user) return;
+    if (!user || !db) return;
     try {
       await setDoc(doc(db, 'users', user.uid), {
         watchlist: Array.from(newWatchlist),
@@ -203,7 +203,7 @@ export const useGroselhinhas = () => {
 
   // Sync with Firestore on login
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
 
     const fetchUserData = async () => {
       try {
