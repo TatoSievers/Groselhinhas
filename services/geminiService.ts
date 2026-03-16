@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
 
@@ -30,15 +30,40 @@ export const chatWithAssistant = async (message: string, history: any[]): Promis
       model: 'gemini-3.1-flash-lite-preview',
       contents: contents,
       config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            message: {
+              type: Type.STRING,
+              description: "A mensagem principal do assistente em Markdown. SEMPRE que citar o título de um filme ou série no meio do texto, coloque-o como um link no formato Markdown usando 'movie:' seguido do título exato. Exemplo: [Interestelar](movie:Interestelar)."
+            },
+            recommendations: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING, description: "O título do filme ou série recomendado." },
+                  description: { type: Type.STRING, description: "Uma breve descrição ou motivo da recomendação." }
+                },
+                required: ["title", "description"]
+              },
+              description: "Uma lista de filmes ou séries recomendados, se houver. Se não houver recomendações, retorne um array vazio."
+            }
+          },
+          required: ["message", "recommendations"]
+        },
         systemInstruction: `Você é um assistente especialista em filmes e séries para o app "Groselhinhas".
 Seja amigável, moderno e direto.
-MUITO IMPORTANTE: Formate suas respostas usando Markdown. Use parágrafos curtos, listas (bullet points) e negrito para destacar nomes de filmes ou termos importantes. NUNCA responda com um único parágrafo longo e enfadonho. Estruture bem a informação para facilitar a leitura.`,
+MUITO IMPORTANTE: Formate sua 'message' usando Markdown. Use parágrafos curtos, listas e negrito para destacar termos importantes.
+SEMPRE que citar o título de um filme ou série na 'message', coloque-o como um link no formato Markdown usando 'movie:' seguido do título exato. Exemplo: [Interestelar](movie:Interestelar).
+Se você for recomendar filmes, coloque-os no array 'recommendations'.`,
       },
     });
 
-    return response.text || 'Desculpe, não consegui pensar em nada agora.';
+    return response.text || '{"message": "Desculpe, não consegui pensar em nada agora.", "recommendations": []}';
   } catch (error) {
     console.error('Error chatting with assistant:', error);
-    return 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente mais tarde.';
+    return '{"message": "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente mais tarde.", "recommendations": []}';
   }
 };

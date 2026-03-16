@@ -660,6 +660,21 @@ export const useGroselhinhas = () => {
         setSearchResults([]);
     };
 
+    const searchMovieByTitle = async (title: string): Promise<Movie | null> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/search/multi?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(title)}&page=1`, { referrerPolicy: 'no-referrer' });
+            const data = await response.json();
+            const result = data.results.find((item: any) => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path);
+            if (result) {
+                return transformTmdbItem(result, false, allGenres);
+            }
+            return null;
+        } catch (err) {
+            console.error("Failed to search movie by title", err);
+            return null;
+        }
+    };
+
   const handleSetIsWatchlistMode = (value: boolean) => {
     setIsWatchlistMode(value);
     if (value) {
@@ -865,6 +880,7 @@ export const useGroselhinhas = () => {
     searchResults,
     isSearching,
     clearSearch,
+    searchMovieByTitle,
     currentPage,
     totalPages,
     setCurrentPage,

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, XMarkIcon, PaperAirplaneIcon } from './Icons';
+import { SparklesIcon, XMarkIcon, PaperAirplaneIcon, ChevronDownIcon } from './Icons';
 import { chatWithAssistant } from '../services/geminiService';
 import Markdown from 'react-markdown';
+import { Movie } from '../types';
 
 interface Message {
   id: string;
@@ -9,13 +10,18 @@ interface Message {
   parts: { text: string }[];
 }
 
-export const ChatAssistant: React.FC = () => {
+interface ChatAssistantProps {
+  onMovieClick: (movie: Movie) => void;
+  searchMovieByTitle: (title: string) => Promise<Movie | null>;
+}
+
+export const ChatAssistant: React.FC<ChatAssistantProps> = ({ onMovieClick, searchMovieByTitle }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'model',
-      parts: [{ text: 'Oi! Sou o assistente do Groselhinhas. Posso te dar dicas de filmes, explicar sinopses ou sugerir algo com base no seu humor. O que vamos assistir hoje?' }]
+      parts: [{ text: '{"message": "Oi! Sou o assistente do Groselhinhas. Posso te dar dicas de filmes, explicar sinopses ou sugerir algo com base no seu humor. O que vamos assistir hoje?", "recommendations": []}' }]
     }
   ]);
   const [input, setInput] = useState('');
@@ -109,7 +115,64 @@ export const ChatAssistant: React.FC = () => {
                     msg.parts[0].text
                   ) : (
                     <div className="markdown-body">
-                      <Markdown>{msg.parts[0].text}</Markdown>
+                      {(() => {
+                        try {
+                          const parsed = JSON.parse(msg.parts[0].text);
+                          return (
+                            <>
+                              <Markdown
+                                components={{
+                                  a: ({ node, ...props }) => {
+                                    if (props.href?.startsWith('movie:')) {
+                                      const title = decodeURIComponent(props.href.replace('movie:', ''));
+                                      return (
+                                        <button 
+                                          onClick={async () => {
+                                            const movie = await searchMovieByTitle(title);
+                                            if (movie) onMovieClick(movie);
+                                          }}
+                                          className="text-brand-accent hover:underline font-bold inline-flex items-center gap-1"
+                                        >
+                                          {props.children}
+                                        </button>
+                                      );
+                                    }
+                                    return <a {...props} />;
+                                  }
+                                }}
+                              >
+                                {parsed.message}
+                              </Markdown>
+                              {parsed.recommendations && parsed.recommendations.length > 0 && (
+                                <div className="mt-4 space-y-2">
+                                  {parsed.recommendations.map((rec: any, idx: number) => (
+                                    <details key={idx} className="bg-white/5 border border-white/10 rounded-xl group overflow-hidden">
+                                      <summary className="cursor-pointer p-3 font-bold text-brand-accent flex items-center justify-between hover:bg-white/5 transition-colors">
+                                        {rec.title}
+                                        <ChevronDownIcon className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
+                                      </summary>
+                                      <div className="p-3 pt-0 text-sm text-gray-300">
+                                        <p className="mb-3">{rec.description}</p>
+                                        <button 
+                                          onClick={async () => {
+                                            const movie = await searchMovieByTitle(rec.title);
+                                            if (movie) onMovieClick(movie);
+                                          }}
+                                          className="text-xs font-bold uppercase tracking-wider text-brand-background bg-brand-accent px-3 py-1.5 rounded-lg hover:bg-amber-400 transition-colors"
+                                        >
+                                          Ver Detalhes
+                                        </button>
+                                      </div>
+                                    </details>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        } catch (e) {
+                          return <Markdown>{msg.parts[0].text}</Markdown>;
+                        }
+                      })()}
                     </div>
                   )}
                 </div>

@@ -505,7 +505,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <ChatAssistant />
+      <ChatAssistant 
+        onMovieClick={setSelectedMovie} 
+        searchMovieByTitle={searchMovieByTitle} 
+      />
     </div>
   );
 };
