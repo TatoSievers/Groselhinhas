@@ -156,6 +156,7 @@ const App: React.FC = () => {
   const [showSaveFavoritesPopup, setShowSaveFavoritesPopup] = React.useState(false);
   const [newVersionAvailable, setNewVersionAvailable] = React.useState<string | null>(null);
   const [movieToShare, setMovieToShare] = React.useState<Movie | null>(null);
+  const [appVersion, setAppVersion] = React.useState<string | null>(null);
 
   const prevListSizes = React.useRef({ watchlist: 0, watched: 0, notInterested: 0 });
 
@@ -248,6 +249,7 @@ const App: React.FC = () => {
   React.useEffect(() => {
     const initialVersionMeta = document.querySelector('meta[name="app-version"]');
     const initialVersion = initialVersionMeta ? initialVersionMeta.getAttribute('content') : null;
+    setAppVersion(initialVersion);
 
     if (!initialVersion) return;
 
@@ -496,7 +498,7 @@ const App: React.FC = () => {
       )}
 
        <footer className="text-center py-10 text-gray-500 text-[10px] uppercase font-bold tracking-[0.2em] opacity-40">
-        <p>Groselhinhas &copy; 2024. Curadoria Premium.</p>
+        <p>Groselhinhas &copy; 2024. Curadoria Premium. {appVersion && <span className="ml-2 font-mono opacity-50">v{appVersion}</span>}</p>
       </footer>
 
       {selectedMovie && (
