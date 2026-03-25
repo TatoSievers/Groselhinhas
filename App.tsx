@@ -173,9 +173,12 @@ const App: React.FC = () => {
 
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Validate origin is from AI Studio preview
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+      if (
+        !origin.endsWith('.run.app') &&
+        !origin.includes('localhost') &&
+        !origin.includes('groselhinhas.vercel.app')
+      ) {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
