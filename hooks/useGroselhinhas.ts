@@ -929,7 +929,7 @@ export const useGroselhinhas = () => {
           return rawTitle.split(',')[0].trim();
         }).filter((t): t is string => Boolean(t));
       } catch (err) {
-        console.error("Erro ao fazer parse do RSS:", url, err);
+        console.error("Erro ao fazer parse do RSS:", urlParams, err);
         return [];
       }
     };
