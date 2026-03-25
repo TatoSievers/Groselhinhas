@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Movie, Provider } from '../types';
-import { BookmarkIcon, PlayIcon, ShareIcon, NoSymbolIcon, EyeIcon, Bars3Icon, XMarkIcon, ClockIcon, SparklesIcon, MusicalNoteIcon } from './Icons';
+import { BookmarkIcon, PlayIcon, ShareIcon, NoSymbolIcon, EyeIcon, Bars3Icon, XMarkIcon, ClockIcon, SparklesIcon, MusicClefIcon, CheckCircleIcon, ArrowLeftIcon } from './Icons';
 import { CreditCard } from './CreditCard';
 
 interface ModalProps {
@@ -12,6 +12,8 @@ interface ModalProps {
   isInWatchlist: boolean;
   onToggleWatched: () => void;
   isInWatchedList: boolean;
+  isNotInterested: boolean;
+  onToggleNotInterested: () => void;
   isFetchingDetails: boolean;
   onShareClick: () => void;
 }
@@ -35,6 +37,8 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
   isInWatchlist,
   onToggleWatched,
   isInWatchedList,
+  isNotInterested,
+  onToggleNotInterested,
   isFetchingDetails,
   onShareClick,
 }) => {
@@ -63,8 +67,8 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
       >
         {/* Header de Controle Superior */}
         <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-6">
-             <button onClick={onClose} className="p-2 text-brand-accent hover:opacity-80 transition-opacity">
-                <Bars3Icon className="w-8 h-8" />
+             <button onClick={onClose} className="p-2 rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/10 hover:bg-white hover:text-black transition-all">
+                <ArrowLeftIcon className="w-6 h-6" />
              </button>
         </div>
 
@@ -91,6 +95,15 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
                         <PlayIcon className="w-6 h-6" />
                     </button>
                     <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`https://open.spotify.com/search/${encodeURIComponent(movie.title + ' soundtrack')}`, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/10 active:scale-90 transition-all"
+                    >
+                        <MusicClefIcon className="w-6 h-6" />
+                    </button>
+                    <button 
                         onClick={onShareClick}
                         className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/10 active:scale-90 transition-all"
                     >
@@ -106,10 +119,11 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
                         onClick={onToggleWatched}
                         className={`p-3.5 rounded-full backdrop-blur-xl border border-white/10 active:scale-90 transition-all ${isInWatchedList ? 'bg-emerald-500 text-white' : 'bg-black/40 text-white'}`}
                     >
-                        <ClockIcon className="w-6 h-6" />
+                        <CheckCircleIcon className="w-6 h-6" />
                     </button>
                     <button 
-                        className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/10 active:scale-90 transition-all"
+                        onClick={onToggleNotInterested}
+                        className={`p-3.5 rounded-full backdrop-blur-xl border border-white/10 active:scale-90 transition-all ${isNotInterested ? 'bg-red-500 text-white' : 'bg-black/40 text-white'}`}
                     >
                         <NoSymbolIcon className="w-6 h-6" />
                     </button>
@@ -171,7 +185,7 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1DB954]/10 text-[#1DB954] hover:bg-[#1DB954] hover:text-black font-black uppercase tracking-wider transition-all"
                     >
-                        <MusicalNoteIcon className="w-5 h-5" />
+                        <MusicClefIcon className="w-5 h-5" />
                         Buscar no Spotify
                     </a>
                 </div>

@@ -30,7 +30,15 @@ export const CreditCard: React.FC<CreditCardProps> = ({ person }) => {
                     </div>
                 )}
             </div>
-            <p className="font-bold text-sm text-white truncate" title={person.name}>{person.name}</p>
+            <a 
+                href={`https://www.imdb.com/find?q=${encodeURIComponent(person.name)}&s=nm`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-bold text-sm text-white truncate hover:text-brand-accent transition-colors block" 
+                title={person.name}
+            >
+                {person.name}
+            </a>
             <p className="text-xs text-gray-400 truncate" title={role}>{role}</p>
         </div>
     )

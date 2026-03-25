@@ -188,3 +188,16 @@ export const MusicalNoteIcon: React.FC<IconProps> = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 19.5V3.75m0 15.75a3 3 0 11-6 0 3 3 0 016 0zM9 19.5V3.75m0 15.75c0-1.657 1.343-3 3-3h6c1.657 0 3 1.343 3 3v15.75M9 3.75h12M9 3.75v15.75M12 7.5h9" />
   </svg>
 );
+
+export const MusicClefIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C9.243 2 7 4.243 7 7v7.5c0 2.481 2.019 4.5 4.5 4.5s4.5-2.019 4.5-4.5c0-1.656-.893-3.115-2.228-3.914l-.772-.463V7c0-1.654 1.346-3 3-3V2c-2.757 0-5 2.243-5 5v8.5c0 1.378-1.122 2.5-2.5 2.5S6 16.878 6 15.5 7.122 13 8.5 13h.5v-2h-.5C6.019 11 4 13.019 4 15.5S6.019 20 8.5 20 13 17.981 13 15.5V7c0-2.757 2.243-5 5-5V0c-3.309 0-6 2.691-6 6v8.5c0 .275-.044.542-.128.793l.628.377C14.336 16.77 15 17.804 15 19c0 1.654-1.346 3-3 3s-3-1.346-3-3V7c0-3.859 3.141-7 7-7v2z" />
+    <path d="M14.5 14.5c-.827 0-1.5.673-1.5 1.5s.673 1.5 1.5 1.5 1.5-.673 1.5-1.5-.673-1.5-1.5-1.5z" />
+  </svg>
+);
+
+export const ArrowLeftIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+  </svg>
+);

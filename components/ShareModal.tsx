@@ -113,20 +113,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({ movie, onClose }) => {
         });
         currentY += 60;
 
-        // --- 3. Draw Rating ---
+        // --- 3. Draw Rating & Providers ---
+        const mainProvider = movie.availability?.flatrate?.[0];
+        let providerLogo: HTMLImageElement | null = null;
+        if (mainProvider?.logo_path) {
+            try {
+                providerLogo = await loadImage(`https://image.tmdb.org/t/p/w185${mainProvider.logo_path}`);
+            } catch (e) {
+                console.error("Could not load provider logo", e);
+            }
+        }
+
         if (currentRating > 0) {
             ctx.textBaseline = 'bottom';
             const ratingString = currentRating.toFixed(1);
-            
-            const mainProvider = movie.availability?.flatrate?.[0];
-            let providerLogo: HTMLImageElement | null = null;
-            if (mainProvider?.logo_path) {
-                try {
-                    providerLogo = await loadImage(`https://image.tmdb.org/t/p/w185${mainProvider.logo_path}`);
-                } catch (e) {
-                    console.error("Could not load provider logo", e);
-                }
-            }
             
             // Measure widths
             ctx.font = 'bold 120px sans-serif';
@@ -167,7 +167,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({ movie, onClose }) => {
             ctx.textBaseline = 'alphabetic'; // Reset
             currentY += 150;
         } else {
-            currentY += 60;
+            if (providerLogo) {
+                const logoSize = 100;
+                const logoX = (W - logoSize) / 2;
+                ctx.drawImage(providerLogo, logoX, currentY, logoSize, logoSize);
+                currentY += logoSize + 40;
+            } else {
+                currentY += 60;
+            }
         }
 
         // --- 4. Calculate Text & Poster Dimensions ---

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Movie, Ratings, Genre, Person, Provider, Availability } from '../types';
 import { supabase } from '../supabase';
 
-const API_KEY = '7c572a9f5b3ba776080330d23bb76e1e';
+const API_KEY = import.meta.env.VITE_TMDB_API_KEY || '7c572a9f5b3ba776080330d23bb76e1e';
 const API_BASE_URL = 'https://api.themoviedb.org/3';
 
 const GENRE_TRANSLATIONS: Record<number, string> = {

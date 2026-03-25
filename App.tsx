@@ -128,6 +128,7 @@ const App: React.FC = () => {
     searchResults,
     isSearching,
     clearSearch,
+    searchMovieByTitle,
     currentPage,
     totalPages,
     setCurrentPage,
@@ -147,8 +148,28 @@ const App: React.FC = () => {
 
   const [isFilterPanelOpen, setIsFilterPanelOpen] = React.useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+  const [showSaveFavoritesPopup, setShowSaveFavoritesPopup] = React.useState(false);
   const [newVersionAvailable, setNewVersionAvailable] = React.useState<string | null>(null);
   const [movieToShare, setMovieToShare] = React.useState<Movie | null>(null);
+
+  const prevListSizes = React.useRef({ watchlist: 0, watched: 0, notInterested: 0 });
+
+  React.useEffect(() => {
+    if (!session?.user) {
+      const addedToWatchlist = watchlist.size > prevListSizes.current.watchlist;
+      const addedToWatched = watchedList.size > prevListSizes.current.watched;
+      const addedToNotInterested = notInterestedList.size > prevListSizes.current.notInterested;
+
+      if (addedToWatchlist || addedToWatched || addedToNotInterested) {
+        setShowSaveFavoritesPopup(true);
+      }
+    }
+    prevListSizes.current = {
+      watchlist: watchlist.size,
+      watched: watchedList.size,
+      notInterested: notInterestedList.size,
+    };
+  }, [watchlist.size, watchedList.size, notInterestedList.size, session?.user]);
 
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -402,20 +423,6 @@ const App: React.FC = () => {
         </aside>
         
         <main className="flex-1 min-w-0">
-          {!session?.user && !isWatchlistMode && !isWatchedMode && !isNotInterestedMode && (
-            <div className="mb-8 p-6 rounded-3xl bg-gradient-to-r from-brand-accent/20 to-transparent border border-brand-accent/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-black italic text-white uppercase tracking-tight">Salve seus favoritos</h3>
-                <p className="text-sm text-gray-400 mt-1">Crie uma conta para sincronizar sua lista de filmes e séries em qualquer dispositivo.</p>
-              </div>
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="whitespace-nowrap px-6 py-3 rounded-xl bg-brand-accent text-brand-background font-black uppercase tracking-wider hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20"
-              >
-                Criar Conta / Entrar
-              </button>
-            </div>
-          )}
           <div className="mb-4 md:mb-6 flex items-center justify-between">
               <h2 className="text-xl md:text-3xl font-black italic tracking-tighter text-white uppercase">
                 {isWatchlistMode ? 'Minha Lista' : isWatchedMode ? 'Assistidos' : isNotInterestedMode ? 'Descartados' : 'Lançamentos'}
@@ -470,6 +477,8 @@ const App: React.FC = () => {
           onToggleWatchlist={() => toggleWatchlist(selectedMovie.id)}
           isInWatchedList={watchedList.has(selectedMovie.id)}
           onToggleWatched={() => toggleWatched(selectedMovie.id)}
+          isNotInterested={notInterestedList.has(selectedMovie.id)}
+          onToggleNotInterested={() => toggleNotInterested(selectedMovie.id)}
           isFetchingDetails={isFetchingDetails}
           onShareClick={() => setMovieToShare(selectedMovie)}
         />
@@ -502,6 +511,38 @@ const App: React.FC = () => {
                     ATUALIZAR AGORA
                 </button>
             </div>
+        </div>
+      )}
+
+      {showSaveFavoritesPopup && !session?.user && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-brand-surface border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
+            <button
+              onClick={() => setShowSaveFavoritesPopup(false)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-gray-300 hover:bg-white hover:text-black transition-colors"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+            <h3 className="text-2xl font-black italic text-white uppercase tracking-tight mb-2">Salve seus favoritos</h3>
+            <p className="text-gray-400 mb-6">Crie uma conta para sincronizar sua lista de filmes e séries em qualquer dispositivo. É rápido e gratuito!</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowSaveFavoritesPopup(false);
+                  setIsAuthModalOpen(true);
+                }}
+                className="w-full py-3 rounded-xl bg-brand-accent text-brand-background font-black uppercase tracking-wider hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20"
+              >
+                Criar Conta / Entrar
+              </button>
+              <button
+                onClick={() => setShowSaveFavoritesPopup(false)}
+                className="w-full py-3 rounded-xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors"
+              >
+                Agora não
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
