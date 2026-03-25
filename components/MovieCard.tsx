@@ -1,6 +1,6 @@
 import React from 'react';
 import { Movie } from '../types';
-import { BookmarkIcon, ImdbIcon, CheckCircleIcon, ClockIcon, PlayIcon, FilmIcon, NoSymbolIcon, ShareIcon, SpotifyIcon, LetterboxdIcon } from './Icons';
+import { BookmarkIcon, ImdbIcon, CheckCircleIcon, ClockIcon, PlayIcon, FilmIcon, NoSymbolIcon, ShareIcon, SpotifyIcon } from './Icons';
 import { StreamingPill } from './StreamingPill';
 
 interface MovieCardProps {
@@ -26,8 +26,6 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onToggleWatchlist, 
   const releaseDate = new Date(movie.releaseDate);
   const today = new Date();
   const isNewRelease = movie.type === 'Movie' && releaseDate.getFullYear() === today.getFullYear() && releaseDate.getMonth() >= today.getMonth() - 1;
-
-  const letterboxdSlug = movie.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
 
   return (
     <div 
@@ -117,16 +115,6 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onToggleWatchlist, 
               title="Trilha Sonora no Spotify"
             >
               <SpotifyIcon className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                window.open(`https://letterboxd.com/film/${letterboxdSlug}/`, '_blank', 'noopener,noreferrer');
-              }}
-              className="p-2 md:p-2.5 rounded-full md:rounded-full backdrop-blur-xl bg-black/60 border border-white/10 text-white hover:bg-[#2c3440] hover:border-[#00E054] transition-all hover:scale-110 active:scale-95 group/lb"
-              title="Abrir no Letterboxd"
-            >
-              <LetterboxdIcon className="w-4 h-4 md:w-5 md:h-5 opacity-80 group-hover/lb:opacity-100" />
             </button>
             <button
               onClick={(e) => handleActionClick(e, onShareClick)}

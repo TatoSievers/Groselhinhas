@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Movie, Provider } from '../types';
-import { BookmarkIcon, PlayIcon, ShareIcon, NoSymbolIcon, EyeIcon, Bars3Icon, XMarkIcon, ClockIcon, SparklesIcon, SpotifyIcon, CheckCircleIcon, ArrowLeftIcon, LetterboxdIcon } from './Icons';
+import { BookmarkIcon, PlayIcon, ShareIcon, NoSymbolIcon, EyeIcon, Bars3Icon, XMarkIcon, ClockIcon, SparklesIcon, SpotifyIcon, CheckCircleIcon, ArrowLeftIcon } from './Icons';
 import { CreditCard } from './CreditCard';
 
 interface ModalProps {
@@ -52,8 +52,6 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
     if(movie.trailerUrl) window.open(movie.trailerUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const letterboxdSlug = movie.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
-
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center animate-fade-in"
@@ -103,15 +101,6 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
                         className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-[#1DB954] border border-white/10 active:scale-90 transition-all hover:bg-[#1DB954] hover:text-black"
                     >
                         <SpotifyIcon className="w-6 h-6" />
-                    </button>
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(`https://letterboxd.com/film/${letterboxdSlug}/`, '_blank', 'noopener,noreferrer');
-                        }}
-                        className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/10 active:scale-90 transition-all hover:bg-[#2c3440] hover:border-[#00E054] group/lb"
-                    >
-                        <LetterboxdIcon className="w-6 h-6 opacity-80 group-hover/lb:opacity-100" />
                     </button>
                     <button 
                         onClick={onShareClick}
