@@ -147,7 +147,7 @@ const App: React.FC = () => {
     session,
     letterboxdUsername,
     setLetterboxdUsername,
-    syncLetterboxd,
+    importLetterboxdCSV,
   } = useGroselhinhas();
 
   const [isFilterPanelOpen, setIsFilterPanelOpen] = React.useState(false);
@@ -532,9 +532,7 @@ const App: React.FC = () => {
         <ProfileModal 
             onClose={() => setIsProfileModalOpen(false)} 
             session={session}
-            letterboxdUsername={letterboxdUsername}
-            setLetterboxdUsername={setLetterboxdUsername}
-            syncLetterboxd={syncLetterboxd}
+            importLetterboxdCSV={importLetterboxdCSV}
         />
       )}
 

@@ -662,9 +662,10 @@ export const useGroselhinhas = () => {
         setSearchResults([]);
     };
 
-    const searchMovieByTitle = async (title: string): Promise<Movie | null> => {
+    const searchMovieByTitle = async (title: string, year?: string): Promise<Movie | null> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/search/multi?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(title)}&page=1`, { referrerPolicy: 'no-referrer' });
+            const yearParam = year ? `&year=${year}&first_air_date_year=${year}` : '';
+            const response = await fetch(`${API_BASE_URL}/search/multi?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(title)}${yearParam}&page=1`, { referrerPolicy: 'no-referrer' });
             const data = await response.json();
             const result = data.results.find((item: any) => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path);
             if (result) {
@@ -897,82 +898,63 @@ export const useGroselhinhas = () => {
     return []; // Trending section is disabled with pagination model for now to simplify
   }, []);
   
-  const syncLetterboxd = async (username: string): Promise<string> => {
-    let importedWatchlist = 0;
-    let importedWatched = 0;
+  const importLetterboxdCSV = async (
+      file: File, 
+      type: 'watched' | 'watchlist', 
+      onProgress: (current: number, total: number) => void
+  ): Promise<{ imported: number, notFound: number }> => {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return { imported: 0, notFound: 0 };
 
-    const parseRSS = async (urlParams: string) => {
-      try {
-        const response = await fetch(`/api/letterboxd-rss?${urlParams}`);
-        if (!response.ok) return [];
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, "text/xml");
-        const items = xml.querySelectorAll("item");
-        
-        return Array.from(items).map(item => {
-          const filmTitleNodes = item.getElementsByTagNameNS('*', 'filmTitle');
-          if (filmTitleNodes.length > 0 && filmTitleNodes[0].textContent) {
-              return filmTitleNodes[0].textContent;
-          }
-          
-          const titleMatch = item.innerHTML.match(/<letterboxd:filmTitle>(.*?)<\/letterboxd:filmTitle>/);
-          if (titleMatch && titleMatch[1]) return titleMatch[1];
-          
-          const titleNode = item.querySelector("title");
-          if (!titleNode || !titleNode.textContent) return null;
-          
-          let rawTitle = titleNode.textContent;
-          if (rawTitle.startsWith('Watched ')) {
-              rawTitle = rawTitle.replace('Watched ', '');
-          }
-          return rawTitle.split(',')[0].trim();
-        }).filter((t): t is string => Boolean(t));
-      } catch (err) {
-        console.error("Erro ao fazer parse do RSS:", urlParams, err);
-        return [];
-      }
-    };
+    // Find headers
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const nameIdx = headers.indexOf('Name');
+    const yearIdx = headers.indexOf('Year');
 
-    try {
-      const [watchedTitles, watchlistTitles] = await Promise.all([
-        parseRSS(`username=${username}&type=watched`),
-        parseRSS(`username=${username}&type=watchlist`)
-      ]);
-
-      const newWatched = new Set(watchedList);
-      const newWatchlist = new Set(watchlist);
-      const newAllLoaded = new Map(allLoadedMovies);
-
-      for (const title of watchedTitles) {
-          const movie = await searchMovieByTitle(title);
-          if (movie && !newWatched.has(movie.id)) {
-              newWatched.add(movie.id);
-              newAllLoaded.set(movie.id, movie);
-              importedWatched++;
-          }
-      }
-
-      for (const title of watchlistTitles) {
-          const movie = await searchMovieByTitle(title);
-          if (movie && !newWatchlist.has(movie.id) && !newWatched.has(movie.id)) {
-              newWatchlist.add(movie.id);
-              newAllLoaded.set(movie.id, movie);
-              importedWatchlist++;
-          }
-      }
-
-      if (importedWatched > 0 || importedWatchlist > 0) {
-          setAllLoadedMovies(newAllLoaded);
-      }
-      if (importedWatched > 0) setWatchedList(newWatched);
-      if (importedWatchlist > 0) setWatchlist(newWatchlist);
-
-      return `${importedWatched + importedWatchlist} filmes importados (${importedWatched} assistidos, ${importedWatchlist} na lista)`;
-    } catch (err) {
-      console.error(err);
-      throw new Error("Não foi possível sincronizar. Verifique se o perfil é público.");
+    if (nameIdx === -1) {
+        throw new Error("Arquivo CSV inválido. Certifique-se de que é o arquivo original do Letterboxd.");
     }
+
+    const dataRows = lines.slice(1).filter(line => line.trim().length > 0);
+    let importedCount = 0;
+    let notFoundCount = 0;
+
+    const newSet = new Set(type === 'watched' ? watchedList : watchlist);
+    const newAllLoaded = new Map(allLoadedMovies);
+
+    for (let i = 0; i < dataRows.length; i++) {
+        // Basic CSV line parser handling potential commas in quotes
+        const row = dataRows[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || dataRows[i].split(',');
+        const name = (row[nameIdx] || '').trim().replace(/^"|"$/g, '');
+        const year = yearIdx !== -1 ? (row[yearIdx] || '').trim().replace(/^"|"$/g, '') : undefined;
+
+        if (!name) continue;
+
+        const movie = await searchMovieByTitle(name, year);
+        if (movie) {
+            if (!newSet.has(movie.id)) {
+                newSet.add(movie.id);
+                newAllLoaded.set(movie.id, movie);
+                importedCount++;
+            }
+        } else {
+            notFoundCount++;
+        }
+        
+        onProgress(i + 1, dataRows.length);
+    }
+
+    if (importedCount > 0) {
+        setAllLoadedMovies(newAllLoaded);
+        if (type === 'watched') {
+            setWatchedList(newSet);
+        } else {
+            setWatchlist(newSet);
+        }
+    }
+
+    return { imported: importedCount, notFound: notFoundCount };
   };
 
   const displayedGenres = useMemo(() => {
@@ -1025,6 +1007,6 @@ export const useGroselhinhas = () => {
     session,
     letterboxdUsername,
     setLetterboxdUsername,
-    syncLetterboxd,
+    importLetterboxdCSV,
   };
 };

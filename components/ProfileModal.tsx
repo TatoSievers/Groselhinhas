@@ -1,31 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { XMarkIcon, SparklesIcon } from './Icons';
-import { useGroselhinhas } from '../hooks/useGroselhinhas';
+import { XMarkIcon, SparklesIcon, FileIcon, ExclamationTriangleIcon } from './Icons';
 
 interface ProfileModalProps {
   onClose: () => void;
   session: any;
-  letterboxdUsername: string;
-  setLetterboxdUsername: (username: string) => void;
-  syncLetterboxd: (username: string) => Promise<string>;
+  importLetterboxdCSV: (file: File, type: 'watched' | 'watchlist', onProgress: (current: number, total: number) => void) => Promise<{ imported: number, notFound: number }>;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ 
     onClose, 
     session, 
-    letterboxdUsername, 
-    setLetterboxdUsername,
-    syncLetterboxd 
+    importLetterboxdCSV 
 }) => {
-  const [localUsername, setLocalUsername] = useState(letterboxdUsername);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLocalUsername(letterboxdUsername);
-  }, [letterboxdUsername]);
+  const [importingType, setImportingType] = useState<'watched' | 'watchlist' | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [summary, setSummary] = useState<{ imported: number, notFound: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Fechar usando Escape
   useEffect(() => {
@@ -38,35 +29,31 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const user = session.user;
   const avatarUrl = user.user_metadata?.avatar_url;
 
-  const handleSaveAndSync = async () => {
-    const trimmedUser = localUsername.trim();
-    if (!trimmedUser) {
-        setSyncError("Por favor, digite um username válido.");
-        return;
-    }
-    setSyncError(null);
-    setSyncMessage(null);
-    setIsSyncing(true);
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, type: 'watched' | 'watchlist') => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    try {
-        // 1. Salvar no Supabase
-        const { error } = await supabase
-            .from('user_lists')
-            .update({ letterboxd_username: trimmedUser })
-            .eq('id', user.id);
-            
-        if (error) throw error;
-        
-        setLetterboxdUsername(trimmedUser);
+      // Validate filename
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+          setError("Por favor, selecione um arquivo .csv válido.");
+          return;
+      }
 
-        // 2. Chamar sincronização RSS
-        const resultMsg = await syncLetterboxd(trimmedUser);
-        setSyncMessage(`Sucesso! ${resultMsg}`);
-    } catch (err: any) {
-        setSyncError(err.message || "Ocorreu um erro ao salvar/sincronizar.");
-    } finally {
-        setIsSyncing(false);
-    }
+      setError(null);
+      setSummary(null);
+      setImportingType(type);
+      setProgress({ current: 0, total: 0 });
+
+      try {
+          const result = await importLetterboxdCSV(file, type, (current, total) => {
+              setProgress({ current, total });
+          });
+          setSummary(result);
+      } catch (err: any) {
+          setError(err.message || "Erro ao processar o arquivo.");
+      } finally {
+          setImportingType(null);
+      }
   };
 
   return (
@@ -75,11 +62,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       aria-modal="true"
       role="dialog"
     >
-        {/* Usamos onClick on the overlay but prevent bubbling from the modal itself */}
         <div className="absolute inset-0" onClick={onClose} />
         
         <div
-            className="w-full max-w-md bg-brand-surface rounded-3xl shadow-2xl relative border border-white/10 p-6 sm:p-8 animate-slide-up z-10"
+            className="w-full max-w-lg bg-brand-surface rounded-3xl shadow-2xl relative border border-white/10 p-6 sm:p-8 animate-slide-up z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
         >
             <button
                 onClick={onClose}
@@ -91,7 +77,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
             <div className="flex flex-col items-center mb-6">
                 {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar do Perfil" className="w-20 h-20 rounded-full border-2 border-brand-accent object-cover mb-4 shadow-lg shadow-amber-500/20" />
+                    <img src={avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full border-2 border-brand-accent object-cover mb-4" />
                 ) : (
                     <div className="w-20 h-20 rounded-full bg-brand-accent/20 flex items-center justify-center border-2 border-brand-accent text-brand-accent text-3xl font-black mb-4">
                        {user.email?.charAt(0).toUpperCase()}
@@ -102,47 +88,101 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
 
             <div className="space-y-6">
-                 {/* Letterboxd Integration */}
                  <div className="bg-black/20 p-5 rounded-2xl border border-white/5 space-y-4">
                      <div>
-                        <h3 className="text-sm font-black text-[#00E054] tracking-widest uppercase mb-1 flex items-center gap-2">
-                            Integração Letterboxd
+                        <h3 className="text-sm font-black text-[#00E054] tracking-widest uppercase mb-3 flex items-center gap-2">
+                            Importar do Letterboxd
                             <SparklesIcon className="w-4 h-4" />
                         </h3>
-                        <p className="text-xs text-gray-400">
-                            Preencha seu nome de usuário (ex: <span className="text-white italic">dave</span>) para sincronizar automaticamente seus <strong className="text-gray-300">Assistidos</strong> e <strong className="text-gray-300">Watchlist</strong> públicos.
-                        </p>
-                     </div>
+                        
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-4">
+                            <h4 className="flex items-center gap-2 text-amber-500 text-xs font-black uppercase tracking-wider mb-2">
+                                <ExclamationTriangleIcon className="w-4 h-4" />
+                                Por que preciso exportar um arquivo?
+                            </h4>
+                            <p className="text-[11px] text-gray-300 leading-relaxed">
+                                O Letterboxd utiliza o Cloudflare para proteger seus dados, o que impede que aplicativos externos acessem suas listas automaticamente. Por isso, a importação é feita via arquivo CSV — o método oficial e seguro fornecido pelo próprio Letterboxd. Seus dados nunca são enviados para nenhum servidor: tudo acontece direto no seu navegador.
+                            </p>
+                        </div>
 
-                     <div className="flex gap-2">
-                        <span className="inline-flex items-center px-3 rounded-xl bg-white/5 text-gray-400 text-sm border-r border-white/5 font-mono">
-                            letterboxd.com/
-                        </span>
-                        <input 
-                            type="text" 
-                            name="letterboxd_username"
-                            value={localUsername} 
-                            onChange={(e) => setLocalUsername(e.target.value)}
-                            placeholder="username"
-                            className="bg-brand-background/50 border border-white/10 text-white rounded-xl p-3 flex-1 min-w-0 focus:outline-none focus:border-[#00E054] focus:ring-1 focus:ring-[#00E054] transition-colors"
-                        />
-                     </div>
+                        <div className="space-y-3 mb-6">
+                            <h4 className="text-[11px] font-black text-white uppercase tracking-wider">Como importar:</h4>
+                            <ol className="text-[11px] text-gray-400 space-y-2 list-decimal list-inside">
+                                <li>Acesse <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noreferrer" className="text-brand-accent underline">letterboxd.com/settings/data</a> enquanto estiver logado</li>
+                                <li>Clique em <strong className="text-gray-200">"Export Your Data"</strong> e aguarde o e-mail</li>
+                                <li>Baixe o arquivo ZIP e descompacte</li>
+                                <li>Importe os arquivos <strong className="text-gray-200">"watched.csv"</strong> e <strong className="text-gray-200">"watchlist.csv"</strong> aqui abaixo</li>
+                            </ol>
+                        </div>
 
-                     <button 
-                         onClick={handleSaveAndSync}
-                         disabled={isSyncing || !localUsername.trim()}
-                         className="w-full py-3 rounded-xl bg-[#00E054] hover:bg-[#00E054]/90 text-black font-black uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                     >
-                         {isSyncing ? (
-                             <>
-                               <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                               Sincronizando...
-                             </>
-                         ) : 'Salvar e Sincronizar'}
-                     </button>
-                     
-                     {syncError && <p className="text-xs text-red-400 mt-2 font-semibold bg-red-500/10 p-2 rounded-lg">{syncError}</p>}
-                     {syncMessage && <p className="text-xs text-[#00E054] mt-2 font-semibold bg-[#00E054]/10 p-2 rounded-lg">{syncMessage}</p>}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    id="watched-csv" 
+                                    accept=".csv"
+                                    onChange={(e) => handleFileChange(e, 'watched')}
+                                    className="hidden"
+                                    disabled={!!importingType}
+                                />
+                                <label 
+                                    htmlFor="watched-csv"
+                                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed transition-all cursor-pointer ${importingType === 'watched' ? 'border-[#00E054] bg-[#00E054]/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'}`}
+                                >
+                                    <FileIcon className="w-6 h-6 text-gray-400 mb-2" />
+                                    <span className="text-[10px] font-black uppercase text-center text-white">Importar Filmes Assistidos</span>
+                                </label>
+                            </div>
+
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    id="watchlist-csv" 
+                                    accept=".csv"
+                                    onChange={(e) => handleFileChange(e, 'watchlist')}
+                                    className="hidden"
+                                    disabled={!!importingType}
+                                />
+                                <label 
+                                    htmlFor="watchlist-csv"
+                                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed transition-all cursor-pointer ${importingType === 'watchlist' ? 'border-[#00E054] bg-[#00E054]/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'}`}
+                                >
+                                    <FileIcon className="w-6 h-6 text-gray-400 mb-2" />
+                                    <span className="text-[10px] font-black uppercase text-center text-white">Importar Watchlist</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {importingType && (
+                            <div className="mt-4 p-4 bg-white/5 rounded-xl text-center">
+                                <div className="flex items-center justify-center gap-2 text-xs font-bold text-white mb-2">
+                                    <div className="w-3 h-3 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                                    Importando ({importingType === 'watched' ? 'Assistidos' : 'Watchlist'})...
+                                </div>
+                                <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-brand-accent transition-all duration-300" 
+                                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                    ></div>
+                                </div>
+                                <p className="text-[10px] text-gray-500 mt-2 font-mono">{progress.current} / {progress.total}</p>
+                            </div>
+                        )}
+
+                        {summary && (
+                            <div className="mt-4 p-4 bg-[#00E054]/10 border border-[#00E054]/20 rounded-xl text-center">
+                                <p className="text-xs font-black text-[#00E054] uppercase tracking-wide">
+                                    ✅ {summary.imported} filmes importados, {summary.notFound} não encontrados
+                                </p>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                                <p className="text-xs font-bold text-red-500">{error}</p>
+                            </div>
+                        )}
+                     </div>
                  </div>
             </div>
             
