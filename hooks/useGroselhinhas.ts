@@ -177,6 +177,7 @@ export const useGroselhinhas = () => {
   const [isWatchlistMode, setIsWatchlistMode] = useState<boolean>(false);
   const [isWatchedMode, setIsWatchedMode] = useState<boolean>(false);
   const [isNotInterestedMode, setIsNotInterestedMode] = useState<boolean>(false);
+  const [letterboxdUsername, setLetterboxdUsername] = useState<string>('');
   
   // Supabase Auth State
   const [session, setSession] = useState<any>(null);
@@ -201,7 +202,7 @@ export const useGroselhinhas = () => {
       const fetchLists = async () => {
         const { data, error } = await supabase
           .from('user_lists')
-          .select('watchlist, watched_list, not_interested_list')
+          .select('watchlist, watched_list, not_interested_list, letterboxd_username')
           .eq('id', session.user.id)
           .single();
         
@@ -209,6 +210,7 @@ export const useGroselhinhas = () => {
           if (data.watchlist) setWatchlist(new Set(data.watchlist));
           if (data.watched_list) setWatchedList(new Set(data.watched_list));
           if (data.not_interested_list) setNotInterestedList(new Set(data.not_interested_list));
+          if (data.letterboxd_username) setLetterboxdUsername(data.letterboxd_username);
         } else if (error && error.code === 'PGRST116') {
           // Row doesn't exist, create it
           await supabase.from('user_lists').insert({ id: session.user.id });
@@ -895,6 +897,84 @@ export const useGroselhinhas = () => {
     return []; // Trending section is disabled with pagination model for now to simplify
   }, []);
   
+  const syncLetterboxd = async (username: string): Promise<string> => {
+    let importedWatchlist = 0;
+    let importedWatched = 0;
+
+    const parseRSS = async (url: string) => {
+      try {
+        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+        if (!response.ok) return [];
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, "text/xml");
+        const items = xml.querySelectorAll("item");
+        
+        return Array.from(items).map(item => {
+          const filmTitleNodes = item.getElementsByTagNameNS('*', 'filmTitle');
+          if (filmTitleNodes.length > 0 && filmTitleNodes[0].textContent) {
+              return filmTitleNodes[0].textContent;
+          }
+          
+          const titleMatch = item.innerHTML.match(/<letterboxd:filmTitle>(.*?)<\/letterboxd:filmTitle>/);
+          if (titleMatch && titleMatch[1]) return titleMatch[1];
+          
+          const titleNode = item.querySelector("title");
+          if (!titleNode || !titleNode.textContent) return null;
+          
+          let rawTitle = titleNode.textContent;
+          if (rawTitle.startsWith('Watched ')) {
+              rawTitle = rawTitle.replace('Watched ', '');
+          }
+          return rawTitle.split(',')[0].trim();
+        }).filter((t): t is string => Boolean(t));
+      } catch (err) {
+        console.error("Erro ao fazer parse do RSS:", url, err);
+        return [];
+      }
+    };
+
+    try {
+      const [watchedTitles, watchlistTitles] = await Promise.all([
+        parseRSS(`https://letterboxd.com/${username}/rss/`),
+        parseRSS(`https://letterboxd.com/${username}/watchlist/rss/`)
+      ]);
+
+      const newWatched = new Set(watchedList);
+      const newWatchlist = new Set(watchlist);
+      const newAllLoaded = new Map(allLoadedMovies);
+
+      for (const title of watchedTitles) {
+          const movie = await searchMovieByTitle(title);
+          if (movie && !newWatched.has(movie.id)) {
+              newWatched.add(movie.id);
+              newAllLoaded.set(movie.id, movie);
+              importedWatched++;
+          }
+      }
+
+      for (const title of watchlistTitles) {
+          const movie = await searchMovieByTitle(title);
+          if (movie && !newWatchlist.has(movie.id) && !newWatched.has(movie.id)) {
+              newWatchlist.add(movie.id);
+              newAllLoaded.set(movie.id, movie);
+              importedWatchlist++;
+          }
+      }
+
+      if (importedWatched > 0 || importedWatchlist > 0) {
+          setAllLoadedMovies(newAllLoaded);
+      }
+      if (importedWatched > 0) setWatchedList(newWatched);
+      if (importedWatchlist > 0) setWatchlist(newWatchlist);
+
+      return `${importedWatched + importedWatchlist} filmes importados (${importedWatched} assistidos, ${importedWatchlist} na lista)`;
+    } catch (err) {
+      console.error(err);
+      throw new Error("Não foi possível sincronizar. Verifique se o perfil é público.");
+    }
+  };
+
   const displayedGenres = useMemo(() => {
     return allGenres;
   }, [allGenres]);
@@ -943,5 +1023,8 @@ export const useGroselhinhas = () => {
     showAllProviders,
     setShowAllProviders,
     session,
+    letterboxdUsername,
+    setLetterboxdUsername,
+    syncLetterboxd,
   };
 };

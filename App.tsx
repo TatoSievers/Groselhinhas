@@ -10,6 +10,7 @@ import { MovieCardSkeleton } from './components/MovieCardSkeleton';
 import { MovieDetailsModal } from './components/MovieDetailsModal';
 import { ShareModal } from './components/ShareModal';
 import { AuthModal } from './components/AuthModal';
+import { ProfileModal } from './components/ProfileModal';
 import { ChatAssistant } from './components/ChatAssistant';
 import { Movie } from './types';
 import { supabase } from './supabase';
@@ -144,10 +145,14 @@ const App: React.FC = () => {
     setShowAllProviders,
     isServiceActive,
     session,
+    letterboxdUsername,
+    setLetterboxdUsername,
+    syncLetterboxd,
   } = useGroselhinhas();
 
   const [isFilterPanelOpen, setIsFilterPanelOpen] = React.useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
   const [showSaveFavoritesPopup, setShowSaveFavoritesPopup] = React.useState(false);
   const [newVersionAvailable, setNewVersionAvailable] = React.useState<string | null>(null);
   const [movieToShare, setMovieToShare] = React.useState<Movie | null>(null);
@@ -412,6 +417,7 @@ const App: React.FC = () => {
          onToggleMenu={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
          session={session}
          onAuthClick={() => setIsAuthModalOpen(true)}
+         onProfileClick={() => setIsProfileModalOpen(true)}
       />
       
       {/* Mobile Quick Navigation Strip - More Compact */}
@@ -518,6 +524,16 @@ const App: React.FC = () => {
 
       {isAuthModalOpen && (
         <AuthModal onClose={() => setIsAuthModalOpen(false)} />
+      )}
+
+      {isProfileModalOpen && (
+        <ProfileModal 
+            onClose={() => setIsProfileModalOpen(false)} 
+            session={session}
+            letterboxdUsername={letterboxdUsername}
+            setLetterboxdUsername={setLetterboxdUsername}
+            syncLetterboxd={syncLetterboxd}
+        />
       )}
 
       {newVersionAvailable && (
