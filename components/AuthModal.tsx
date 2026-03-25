@@ -30,7 +30,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         provider: 'google',
         options: {
           skipBrowserRedirect: true,
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: 'https://groselhinhas.vercel.app/auth/callback'
         }
       });
       if (error) throw error;

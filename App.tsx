@@ -190,17 +190,39 @@ const App: React.FC = () => {
     React.useEffect(() => {
       const checkSession = async () => {
         const { data } = await supabase.auth.getSession();
+
+        // Popup flow: signal the opener and close this window
         if (data.session && window.opener) {
           window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
           window.close();
-        } else if (window.opener) {
+          return;
+        }
+
+        // Direct redirect flow: wait for sign-in and navigate home
+        if (!window.opener) {
+          if (data.session) {
+            window.location.replace('/');
+            return;
+          }
           supabase.auth.onAuthStateChange((event) => {
             if (event === 'SIGNED_IN') {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
-              window.close();
+              window.location.replace('/');
             }
           });
+          return;
         }
+
+        // Popup flow without a session yet: wait for it
+        supabase.auth.onAuthStateChange((event) => {
+          if (event === 'SIGNED_IN') {
+            if (window.opener) {
+              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+              window.close();
+            } else {
+              window.location.replace('/');
+            }
+          }
+        });
       };
       checkSession();
     }, []);
