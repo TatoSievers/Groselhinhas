@@ -19,7 +19,18 @@ export default async function handler(req: any, res: any) {
     });
 
     if (!response.ok) {
-        return res.status(response.status).json({ error: `Letterboxd returned ${response.status} ${response.statusText}` });
+      const body = await response.text();
+      console.error('Letterboxd Fetch Failed:', {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: body
+      });
+      return res.status(200).json({
+        debug: true,
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: body.substring(0, 500)
+      });
     }
 
     const xml = await response.text();
