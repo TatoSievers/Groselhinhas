@@ -901,9 +901,9 @@ export const useGroselhinhas = () => {
     let importedWatchlist = 0;
     let importedWatched = 0;
 
-    const parseRSS = async (url: string) => {
+    const parseRSS = async (urlParams: string) => {
       try {
-        const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+        const response = await fetch(`/api/letterboxd-rss?${urlParams}`);
         if (!response.ok) return [];
         const text = await response.text();
         const parser = new DOMParser();
@@ -936,8 +936,8 @@ export const useGroselhinhas = () => {
 
     try {
       const [watchedTitles, watchlistTitles] = await Promise.all([
-        parseRSS(`https://letterboxd.com/${username}/rss/`),
-        parseRSS(`https://letterboxd.com/${username}/watchlist/rss/`)
+        parseRSS(`username=${username}&type=watched`),
+        parseRSS(`username=${username}&type=watchlist`)
       ]);
 
       const newWatched = new Set(watchedList);
