@@ -903,7 +903,7 @@ export const useGroselhinhas = () => {
 
     const parseRSS = async (url: string) => {
       try {
-        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+        const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
         if (!response.ok) return [];
         const text = await response.text();
         const parser = new DOMParser();
