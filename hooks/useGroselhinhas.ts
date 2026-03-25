@@ -702,6 +702,54 @@ export const useGroselhinhas = () => {
     }
   };
 
+  // When entering a list mode, fetch any IDs that are not yet in allLoadedMovies
+  useEffect(() => {
+    const activeList = isWatchlistMode ? watchlist : isWatchedMode ? watchedList : isNotInterestedMode ? notInterestedList : null;
+    if (!activeList || activeList.size === 0) return;
+
+    const missingIds = Array.from(activeList).filter(id => !allLoadedMovies.has(id));
+    if (missingIds.length === 0) return;
+
+    const fetchMissingItems = async () => {
+      setIsLoading(true);
+
+      const fetchItem = async (id: number): Promise<Movie | null> => {
+        // Try movie first, fall back to tv
+        for (const type of ['movie', 'tv'] as const) {
+          try {
+            const res = await fetch(
+              `${API_BASE_URL}/${type}/${id}?api_key=${API_KEY}&language=pt-BR&append_to_response=watch/providers,videos,external_ids`,
+              { referrerPolicy: 'no-referrer' }
+            );
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (!data.id) continue;
+            return transformTmdbItem(data, false, allGenres);
+          } catch {
+            // try next type
+          }
+        }
+        return null;
+      };
+
+      const results = await Promise.all(missingIds.map(fetchItem));
+      const fetched = results.filter((m): m is Movie => m !== null);
+
+      if (fetched.length > 0) {
+        setAllLoadedMovies((prev: Map<number, Movie>) => {
+          const next = new Map<number, Movie>(prev);
+          fetched.forEach(m => next.set(m.id, m));
+          return next;
+        });
+      }
+
+      setIsLoading(false);
+    };
+
+    fetchMissingItems();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWatchlistMode, isWatchedMode, isNotInterestedMode, watchlist, watchedList, notInterestedList]);
+
   useEffect(() => {
     const arr = Array.from(watchlist);
     localStorage.setItem('groselhinhasWatchlist', JSON.stringify(arr));
