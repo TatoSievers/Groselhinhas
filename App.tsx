@@ -10,7 +10,6 @@ import { MovieCardSkeleton } from './components/MovieCardSkeleton';
 import { MovieDetailsModal } from './components/MovieDetailsModal';
 import { ShareModal } from './components/ShareModal';
 import { AuthModal } from './components/AuthModal';
-import { ProfileModal } from './components/ProfileModal';
 import { ChatAssistant } from './components/ChatAssistant';
 import { Movie } from './types';
 import { supabase } from './supabase';
@@ -145,18 +144,13 @@ const App: React.FC = () => {
     setShowAllProviders,
     isServiceActive,
     session,
-    letterboxdUsername,
-    setLetterboxdUsername,
-    importLetterboxdCSV,
   } = useGroselhinhas();
 
   const [isFilterPanelOpen, setIsFilterPanelOpen] = React.useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
   const [showSaveFavoritesPopup, setShowSaveFavoritesPopup] = React.useState(false);
   const [newVersionAvailable, setNewVersionAvailable] = React.useState<string | null>(null);
   const [movieToShare, setMovieToShare] = React.useState<Movie | null>(null);
-  const [appVersion, setAppVersion] = React.useState<string | null>(null);
 
   const prevListSizes = React.useRef({ watchlist: 0, watched: 0, notInterested: 0 });
 
@@ -179,12 +173,9 @@ const App: React.FC = () => {
 
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // Validate origin is from AI Studio preview
       const origin = event.origin;
-      if (
-        !origin.endsWith('.run.app') &&
-        !origin.includes('localhost') &&
-        !origin.includes('groselhinhas.vercel.app')
-      ) {
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
@@ -199,39 +190,17 @@ const App: React.FC = () => {
     React.useEffect(() => {
       const checkSession = async () => {
         const { data } = await supabase.auth.getSession();
-
-        // Popup flow: signal the opener and close this window
         if (data.session && window.opener) {
           window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
           window.close();
-          return;
-        }
-
-        // Direct redirect flow: wait for sign-in and navigate home
-        if (!window.opener) {
-          if (data.session) {
-            window.location.replace('/');
-            return;
-          }
+        } else if (window.opener) {
           supabase.auth.onAuthStateChange((event) => {
             if (event === 'SIGNED_IN') {
-              window.location.replace('/');
-            }
-          });
-          return;
-        }
-
-        // Popup flow without a session yet: wait for it
-        supabase.auth.onAuthStateChange((event) => {
-          if (event === 'SIGNED_IN') {
-            if (window.opener) {
               window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
               window.close();
-            } else {
-              window.location.replace('/');
             }
-          }
-        });
+          });
+        }
       };
       checkSession();
     }, []);
@@ -249,7 +218,6 @@ const App: React.FC = () => {
   React.useEffect(() => {
     const initialVersionMeta = document.querySelector('meta[name="app-version"]');
     const initialVersion = initialVersionMeta ? initialVersionMeta.getAttribute('content') : null;
-    setAppVersion(initialVersion);
 
     if (!initialVersion) return;
 
@@ -419,7 +387,6 @@ const App: React.FC = () => {
          onToggleMenu={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
          session={session}
          onAuthClick={() => setIsAuthModalOpen(true)}
-         onProfileClick={() => setIsProfileModalOpen(true)}
       />
       
       {/* Mobile Quick Navigation Strip - More Compact */}
@@ -498,7 +465,7 @@ const App: React.FC = () => {
       )}
 
        <footer className="text-center py-10 text-gray-500 text-[10px] uppercase font-bold tracking-[0.2em] opacity-40">
-        <p>Groselhinhas &copy; 2024. Curadoria Premium. {appVersion && <span className="ml-2 font-mono opacity-50">v{appVersion}</span>}</p>
+        <p>Groselhinhas &copy; 2024. Curadoria Premium.</p>
       </footer>
 
       {selectedMovie && (
@@ -526,14 +493,6 @@ const App: React.FC = () => {
 
       {isAuthModalOpen && (
         <AuthModal onClose={() => setIsAuthModalOpen(false)} />
-      )}
-
-      {isProfileModalOpen && (
-        <ProfileModal 
-            onClose={() => setIsProfileModalOpen(false)} 
-            session={session}
-            importLetterboxdCSV={importLetterboxdCSV}
-        />
       )}
 
       {newVersionAvailable && (

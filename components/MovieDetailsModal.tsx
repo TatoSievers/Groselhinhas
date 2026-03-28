@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { Movie, Provider } from '../types';
-import { BookmarkIcon, PlayIcon, ShareIcon, NoSymbolIcon, EyeIcon, Bars3Icon, XMarkIcon, ClockIcon, SparklesIcon, SpotifyIcon, CheckCircleIcon, ArrowLeftIcon } from './Icons';
+import { BookmarkIcon, PlayIcon, ShareIcon, NoSymbolIcon, EyeIcon, Bars3Icon, XMarkIcon, ClockIcon, SparklesIcon, MusicClefIcon, CheckCircleIcon, ArrowLeftIcon } from './Icons';
 import { CreditCard } from './CreditCard';
 
 interface ModalProps {
@@ -98,9 +99,9 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
                             e.stopPropagation();
                             window.open(`https://open.spotify.com/search/${encodeURIComponent(movie.title + ' soundtrack')}`, '_blank', 'noopener,noreferrer');
                         }}
-                        className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-[#1DB954] border border-white/10 active:scale-90 transition-all hover:bg-[#1DB954] hover:text-black"
+                        className="p-3.5 rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/10 active:scale-90 transition-all"
                     >
-                        <SpotifyIcon className="w-6 h-6" />
+                        <MusicClefIcon className="w-6 h-6" />
                     </button>
                     <button 
                         onClick={onShareClick}
@@ -184,7 +185,7 @@ export const MovieDetailsModal: React.FC<ModalProps> = ({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1DB954]/10 text-[#1DB954] hover:bg-[#1DB954] hover:text-black font-black uppercase tracking-wider transition-all"
                     >
-                        <SpotifyIcon className="w-5 h-5" />
+                        <MusicClefIcon className="w-5 h-5" />
                         Buscar no Spotify
                     </a>
                 </div>

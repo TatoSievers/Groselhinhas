@@ -113,37 +113,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({ movie, onClose }) => {
         });
         currentY += 60;
 
-        // --- 3. Draw Providers ---
-        const providers = movie.availability?.flatrate?.slice(0, 4) || [];
-        const providerLogos = await Promise.all(providers.map(async (p) => {
-            if (p.logo_path) {
-                try {
-                   return await loadImage(`https://image.tmdb.org/t/p/w185${p.logo_path}`);
-                } catch(e) {}
+        // --- 3. Draw Rating & Providers ---
+        const mainProvider = movie.availability?.flatrate?.[0];
+        let providerLogo: HTMLImageElement | null = null;
+        if (mainProvider?.logo_path) {
+            try {
+                providerLogo = await loadImage(`https://image.tmdb.org/t/p/w185${mainProvider.logo_path}`);
+            } catch (e) {
+                console.error("Could not load provider logo", e);
             }
-            return null;
-        }));
-        
-        const validLogos = providerLogos.filter(l => l !== null) as HTMLImageElement[];
-        if (validLogos.length > 0) {
-            const logoSize = 80;
-            const spacing = 20;
-            const totalWidth = (validLogos.length * logoSize) + ((validLogos.length - 1) * spacing);
-            let startX = (W - totalWidth) / 2;
-            
-            validLogos.forEach(logo => {
-                ctx.save();
-                // Add soft shadow and rounded corners effect for the logos
-                ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.shadowBlur = 10;
-                ctx.drawImage(logo, startX, currentY, logoSize, logoSize);
-                ctx.restore();
-                startX += logoSize + spacing;
-            });
-            currentY += logoSize + 60;
         }
 
-        // --- 3.5. Draw Rating ---
         if (currentRating > 0) {
             ctx.textBaseline = 'bottom';
             const ratingString = currentRating.toFixed(1);
@@ -157,11 +137,21 @@ export const ShareModal: React.FC<ShareModalProps> = ({ movie, onClose }) => {
             const slashTenWidth = ctx.measureText(slashTen).width;
             
             const spacing = 15;
-            const totalRatingWidth = ratingWidth + spacing + slashTenWidth;
+            const logoSize = 100;
+            const logoSpacing = providerLogo ? logoSize + spacing : 0;
+            
+            const totalRatingWidth = logoSpacing + ratingWidth + spacing + slashTenWidth;
             let currentX = (W - totalRatingWidth) / 2;
             
             ctx.textAlign = 'left';
 
+            // Draw Logo
+            if (providerLogo) {
+                const logoY = (currentY + 120) - (120 / 2) - (logoSize / 2); // Vertically center logo with the rating number
+                ctx.drawImage(providerLogo, currentX, logoY, logoSize, logoSize);
+                currentX += logoSize + spacing;
+            }
+            
             // Draw Rating number
             ctx.font = 'bold 120px sans-serif';
             ctx.fillStyle = '#f59e0b';
@@ -177,7 +167,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({ movie, onClose }) => {
             ctx.textBaseline = 'alphabetic'; // Reset
             currentY += 150;
         } else {
-            currentY += 20;
+            if (providerLogo) {
+                const logoSize = 100;
+                const logoX = (W - logoSize) / 2;
+                ctx.drawImage(providerLogo, logoX, currentY, logoSize, logoSize);
+                currentY += logoSize + 40;
+            } else {
+                currentY += 60;
+            }
         }
 
         // --- 4. Calculate Text & Poster Dimensions ---

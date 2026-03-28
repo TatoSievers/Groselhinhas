@@ -14,7 +14,6 @@ interface HeaderProps {
   onResultClick: (movie: Movie) => void;
   onClear: () => void;
   onToggleMenu: () => void;
-  onProfileClick: () => void;
   session: any;
   onAuthClick: () => void;
 }
@@ -48,33 +47,15 @@ export const Header: React.FC<HeaderProps> = (props) => {
         </div>
 
         {/* Auth Button */}
-        <div className="flex items-center gap-3">
-          {props.session?.user ? (() => {
-            const user = props.session.user;
-            const avatarUrl = user.user_metadata?.avatar_url;
-            const email = user.email;
-            return (
-              <div 
-                className="flex items-center gap-2 cursor-pointer p-1.5 pr-4 rounded-full bg-white/5 border border-white/5 hover:bg-white/10 hover:border-brand-accent/50 transition-all select-none"
-                onClick={props.onProfileClick}
-              >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-brand-accent object-cover"
-                  />
-                ) : (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-accent/20 flex items-center justify-center border border-brand-accent text-brand-accent font-black text-xs">
-                     {email?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="text-[10px] sm:text-xs text-white font-bold tracking-wider uppercase">
-                  Meu Perfil
-                </span>
-              </div>
-            );
-          })() : (
+        <div className="flex items-center">
+          {props.session?.user ? (
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="px-4 py-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white text-xs font-bold uppercase tracking-wider transition-all"
+            >
+              Sair
+            </button>
+          ) : (
             <button
               onClick={props.onAuthClick}
               className="px-4 py-2 rounded-full bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-brand-background text-xs font-bold uppercase tracking-wider transition-all"

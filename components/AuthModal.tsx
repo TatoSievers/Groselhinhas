@@ -30,20 +30,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         provider: 'google',
         options: {
           skipBrowserRedirect: true,
-          redirectTo: 'https://groselhinhas.vercel.app/auth/callback'
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
       if (error) throw error;
       if (data?.url) {
         window.open(data.url, 'oauth_popup', 'width=600,height=700');
-
-        // Listen for successful login from the popup — close modal immediately
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-          if (event === 'SIGNED_IN') {
-            subscription.unsubscribe();
-            onClose();
-          }
-        });
       }
     } catch (err: any) {
       setError(err.message || 'Erro ao iniciar login com Google.');

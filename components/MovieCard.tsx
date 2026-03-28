@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Movie } from '../types';
-import { BookmarkIcon, ImdbIcon, CheckCircleIcon, ClockIcon, PlayIcon, FilmIcon, NoSymbolIcon, ShareIcon, SpotifyIcon } from './Icons';
+import { BookmarkIcon, ImdbIcon, CheckCircleIcon, ClockIcon, PlayIcon, FilmIcon, NoSymbolIcon, ShareIcon, MusicClefIcon } from './Icons';
 import { StreamingPill } from './StreamingPill';
 
 interface MovieCardProps {
@@ -111,10 +112,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onToggleWatchlist, 
                 e.stopPropagation();
                 window.open(`https://open.spotify.com/search/${encodeURIComponent(movie.title + ' soundtrack')}`, '_blank', 'noopener,noreferrer');
               }}
-              className="p-2 md:p-2.5 rounded-full md:rounded-full backdrop-blur-xl bg-black/60 border border-white/10 text-[#1DB954] hover:bg-[#1DB954] hover:text-black transition-all hover:scale-110 active:scale-95"
-              title="Trilha Sonora no Spotify"
+              className="p-2 md:p-2.5 rounded-full md:rounded-full backdrop-blur-xl bg-black/60 border border-white/10 text-white hover:bg-white hover:text-black transition-all hover:scale-110 active:scale-95"
             >
-              <SpotifyIcon className="w-4 h-4 md:w-5 md:h-5" />
+              <MusicClefIcon className="w-4 h-4 md:w-5 md:h-5" />
             </button>
             <button
               onClick={(e) => handleActionClick(e, onShareClick)}

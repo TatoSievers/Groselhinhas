@@ -177,7 +177,6 @@ export const useGroselhinhas = () => {
   const [isWatchlistMode, setIsWatchlistMode] = useState<boolean>(false);
   const [isWatchedMode, setIsWatchedMode] = useState<boolean>(false);
   const [isNotInterestedMode, setIsNotInterestedMode] = useState<boolean>(false);
-  const [letterboxdUsername, setLetterboxdUsername] = useState<string>('');
   
   // Supabase Auth State
   const [session, setSession] = useState<any>(null);
@@ -202,7 +201,7 @@ export const useGroselhinhas = () => {
       const fetchLists = async () => {
         const { data, error } = await supabase
           .from('user_lists')
-          .select('watchlist, watched_list, not_interested_list, letterboxd_username')
+          .select('watchlist, watched_list, not_interested_list')
           .eq('id', session.user.id)
           .single();
         
@@ -210,7 +209,6 @@ export const useGroselhinhas = () => {
           if (data.watchlist) setWatchlist(new Set(data.watchlist));
           if (data.watched_list) setWatchedList(new Set(data.watched_list));
           if (data.not_interested_list) setNotInterestedList(new Set(data.not_interested_list));
-          if (data.letterboxd_username) setLetterboxdUsername(data.letterboxd_username);
         } else if (error && error.code === 'PGRST116') {
           // Row doesn't exist, create it
           await supabase.from('user_lists').insert({ id: session.user.id });
@@ -662,10 +660,9 @@ export const useGroselhinhas = () => {
         setSearchResults([]);
     };
 
-    const searchMovieByTitle = async (title: string, year?: string): Promise<Movie | null> => {
+    const searchMovieByTitle = async (title: string): Promise<Movie | null> => {
         try {
-            const yearParam = year ? `&year=${year}&first_air_date_year=${year}` : '';
-            const response = await fetch(`${API_BASE_URL}/search/multi?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(title)}${yearParam}&page=1`, { referrerPolicy: 'no-referrer' });
+            const response = await fetch(`${API_BASE_URL}/search/multi?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(title)}&page=1`, { referrerPolicy: 'no-referrer' });
             const data = await response.json();
             const result = data.results.find((item: any) => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path);
             if (result) {
@@ -704,54 +701,6 @@ export const useGroselhinhas = () => {
       setCurrentPage(1);
     }
   };
-
-  // When entering a list mode, fetch any IDs that are not yet in allLoadedMovies
-  useEffect(() => {
-    const activeList = isWatchlistMode ? watchlist : isWatchedMode ? watchedList : isNotInterestedMode ? notInterestedList : null;
-    if (!activeList || activeList.size === 0) return;
-
-    const missingIds = Array.from(activeList).filter(id => !allLoadedMovies.has(id));
-    if (missingIds.length === 0) return;
-
-    const fetchMissingItems = async () => {
-      setIsLoading(true);
-
-      const fetchItem = async (id: number): Promise<Movie | null> => {
-        // Try movie first, fall back to tv
-        for (const type of ['movie', 'tv'] as const) {
-          try {
-            const res = await fetch(
-              `${API_BASE_URL}/${type}/${id}?api_key=${API_KEY}&language=pt-BR&append_to_response=watch/providers,videos,external_ids`,
-              { referrerPolicy: 'no-referrer' }
-            );
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (!data.id) continue;
-            return transformTmdbItem(data, false, allGenres);
-          } catch {
-            // try next type
-          }
-        }
-        return null;
-      };
-
-      const results = await Promise.all(missingIds.map(fetchItem));
-      const fetched = results.filter((m): m is Movie => m !== null);
-
-      if (fetched.length > 0) {
-        setAllLoadedMovies((prev: Map<number, Movie>) => {
-          const next = new Map<number, Movie>(prev);
-          fetched.forEach(m => next.set(m.id, m));
-          return next;
-        });
-      }
-
-      setIsLoading(false);
-    };
-
-    fetchMissingItems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isWatchlistMode, isWatchedMode, isNotInterestedMode, watchlist, watchedList, notInterestedList]);
 
   useEffect(() => {
     const arr = Array.from(watchlist);
@@ -898,65 +847,6 @@ export const useGroselhinhas = () => {
     return []; // Trending section is disabled with pagination model for now to simplify
   }, []);
   
-  const importLetterboxdCSV = async (
-      file: File, 
-      type: 'watched' | 'watchlist', 
-      onProgress: (current: number, total: number) => void
-  ): Promise<{ imported: number, notFound: number }> => {
-    const text = await file.text();
-    const lines = text.split(/\r?\n/);
-    if (lines.length < 2) return { imported: 0, notFound: 0 };
-
-    // Find headers
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const nameIdx = headers.indexOf('Name');
-    const yearIdx = headers.indexOf('Year');
-
-    if (nameIdx === -1) {
-        throw new Error("Arquivo CSV inválido. Certifique-se de que é o arquivo original do Letterboxd.");
-    }
-
-    const dataRows = lines.slice(1).filter(line => line.trim().length > 0);
-    let importedCount = 0;
-    let notFoundCount = 0;
-
-    const newSet = new Set(type === 'watched' ? watchedList : watchlist);
-    const newAllLoaded = new Map(allLoadedMovies);
-
-    for (let i = 0; i < dataRows.length; i++) {
-        // Basic CSV line parser handling potential commas in quotes
-        const row = dataRows[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || dataRows[i].split(',');
-        const name = (row[nameIdx] || '').trim().replace(/^"|"$/g, '');
-        const year = yearIdx !== -1 ? (row[yearIdx] || '').trim().replace(/^"|"$/g, '') : undefined;
-
-        if (!name) continue;
-
-        const movie = await searchMovieByTitle(name, year);
-        if (movie) {
-            if (!newSet.has(movie.id)) {
-                newSet.add(movie.id);
-                newAllLoaded.set(movie.id, movie);
-                importedCount++;
-            }
-        } else {
-            notFoundCount++;
-        }
-        
-        onProgress(i + 1, dataRows.length);
-    }
-
-    if (importedCount > 0) {
-        setAllLoadedMovies(newAllLoaded);
-        if (type === 'watched') {
-            setWatchedList(newSet);
-        } else {
-            setWatchlist(newSet);
-        }
-    }
-
-    return { imported: importedCount, notFound: notFoundCount };
-  };
-
   const displayedGenres = useMemo(() => {
     return allGenres;
   }, [allGenres]);
@@ -1005,8 +895,5 @@ export const useGroselhinhas = () => {
     showAllProviders,
     setShowAllProviders,
     session,
-    letterboxdUsername,
-    setLetterboxdUsername,
-    importLetterboxdCSV,
   };
 };
