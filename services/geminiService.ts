@@ -1,69 +1,39 @@
-import { GoogleGenAI, Type } from '@google/genai';
+/// <reference types="vite/client" />
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
+// A chave do Gemini NÃO vive mais aqui.
+// Este módulo só fala com a Edge Function `gemini-chat` do Supabase,
+// que guarda a chave no servidor. Ver supabase/functions/gemini-chat/index.ts
 
-export const getMovieVibeCheck = async (title: string, synopsis: string): Promise<string> => {
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-preview',
-      contents: `Analise a vibe do filme/série "${title}" com base nesta sinopse: "${synopsis}". Descreva a vibe em uma frase curta, impactante e moderna, usando emojis.`,
-    });
-    return response.text || 'Vibe misteriosa... ✨';
-  } catch (error) {
-    console.error('Error getting vibe check:', error);
-    return 'Vibe indescritível no momento 🎬';
-  }
-};
+const FALLBACK = '{"message": "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente mais tarde.", "recommendations": []}';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const chatWithAssistant = async (message: string, history: any[]): Promise<string> => {
-  try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
-    
-    const contents = history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.parts[0].text }]
-    }));
-    
-    contents.push({ role: 'user', parts: [{ text: message }] });
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY ausentes. Confira o seu .env');
+    return FALLBACK;
+  }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-preview',
-      contents: contents,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            message: {
-              type: Type.STRING,
-              description: "A mensagem principal do assistente em Markdown. SEMPRE que citar o título de um filme ou série no meio do texto, coloque-o como um link no formato Markdown usando 'movie:' seguido do título exato. Exemplo: [Interestelar](movie:Interestelar)."
-            },
-            recommendations: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING, description: "O título do filme ou série recomendado." },
-                  description: { type: Type.STRING, description: "Uma breve descrição ou motivo da recomendação." }
-                },
-                required: ["title", "description"]
-              },
-              description: "Uma lista de filmes ou séries recomendados, se houver. Se não houver recomendações, retorne um array vazio."
-            }
-          },
-          required: ["message", "recommendations"]
-        },
-        systemInstruction: `Você é um assistente especialista em filmes e séries para o app "Groselhinhas".
-Seja amigável, moderno e direto.
-MUITO IMPORTANTE: Formate sua 'message' usando Markdown. Use parágrafos curtos, listas e negrito para destacar termos importantes.
-SEMPRE que citar o título de um filme ou série na 'message', coloque-o como um link no formato Markdown usando 'movie:' seguido do título exato. Exemplo: [Interestelar](movie:Interestelar).
-Se você for recomendar filmes, coloque-os no array 'recommendations'.`,
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
+      body: JSON.stringify({ message, history }),
     });
 
-    return response.text || '{"message": "Desculpe, não consegui pensar em nada agora.", "recommendations": []}';
+    if (!response.ok) {
+      console.error('gemini-chat respondeu', response.status);
+      return FALLBACK;
+    }
+
+    const data = await response.json();
+    return data.text || FALLBACK;
   } catch (error) {
     console.error('Error chatting with assistant:', error);
-    return '{"message": "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente mais tarde.", "recommendations": []}';
+    return FALLBACK;
   }
 };
