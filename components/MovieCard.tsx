@@ -60,12 +60,22 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onToggleWatchlist, 
                )}
                <span className="bg-white/10 backdrop-blur-md text-white text-[7px] md:text-[10px] font-bold px-1 py-0.5 rounded uppercase">{movie.type === 'Movie' ? 'Filme' : 'Série'}</span>
              </div>
-             {movie.ratings.imdb > 0 && (
-                <div className="flex items-center bg-black/60 backdrop-blur-md px-1 py-0.5 rounded border border-white/10">
-                  <span className="text-amber-400 font-black text-[8px] md:text-xs">{movie.ratings.imdb.toFixed(1)}</span>
-                  <span className="text-white/60 text-[6px] md:text-[8px] ml-0.5 font-black uppercase tracking-tighter">IMDb</span>
-                </div>
-             )}
+             <div className="flex items-center gap-1">
+               {movie.ratings.imdb > 0 && (
+                  <div className="flex items-center bg-black/60 backdrop-blur-md px-1 py-0.5 rounded border border-white/10">
+                    <span className="text-amber-400 font-black text-[8px] md:text-xs">{movie.ratings.imdb.toFixed(1)}</span>
+                    <span className="text-white/60 text-[6px] md:text-[8px] ml-0.5 font-black uppercase tracking-tighter">IMDb</span>
+                  </div>
+               )}
+               {typeof movie.ratings.rottenTomatoes === 'number' && (
+                  <div className="flex items-center bg-black/60 backdrop-blur-md px-1 py-0.5 rounded border border-white/10">
+                    <span className={`font-black text-[8px] md:text-xs ${movie.ratings.rottenTomatoes >= 60 ? 'text-red-500' : 'text-green-500'}`}>
+                      {movie.ratings.rottenTomatoes}%
+                    </span>
+                    <span className="text-white/60 text-[6px] md:text-[8px] ml-0.5 font-black uppercase tracking-tighter">RT</span>
+                  </div>
+               )}
+             </div>
           </div>
           
           <h2 className="text-xs md:text-xl font-extrabold text-white leading-tight mb-0.5 md:mb-1 group-hover:text-brand-accent transition-colors line-clamp-2">

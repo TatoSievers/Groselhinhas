@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Movie, Ratings, Genre, Person, Provider, Availability } from '../types';
 import { supabase } from '../supabase';
+import { buscarNotas } from '../services/ratingsService';
+import { ordenarPorScore } from '../lib/score';
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
@@ -275,17 +277,16 @@ export const useGroselhinhas = () => {
         };
 
         if (movieWithFullDetails.imdbId) {
-            try {
-                const imdbResponse = await fetch(`https://imdbapi.dev/v1/titles/${movieWithFullDetails.imdbId}`, { referrerPolicy: 'no-referrer' });
-                if (imdbResponse.ok) {
-                    const imdbData = await imdbResponse.json();
-                    if (imdbData?.rating?.average) {
-                        movieWithFullDetails.ratings.imdb = imdbData.rating.average;
-                        movieWithFullDetails.imdbRatingFetched = true;
-                    }
-                }
-            } catch (e) {
-                console.error(`Failed to fetch IMDb rating for ${movieWithFullDetails.title} in details view`, e);
+            const notasPorId = await buscarNotas([movieWithFullDetails.imdbId]);
+            const notas = notasPorId[movieWithFullDetails.imdbId];
+            if (notas) {
+                movieWithFullDetails.ratings = {
+                    ...movieWithFullDetails.ratings,
+                    imdb: notas.imdb ?? movieWithFullDetails.ratings.imdb,
+                    rottenTomatoes: notas.rottenTomatoes ?? undefined,
+                    metacritic: notas.metacritic ?? undefined,
+                };
+                movieWithFullDetails.imdbRatingFetched = true;
             }
         }
 
@@ -435,11 +436,14 @@ export const useGroselhinhas = () => {
         const commonParams = `api_key=${API_KEY}&language=pt-BR&page=${currentPage}&region=BR&vote_count.gte=100`;
 
         if (typeFilter !== 'Series') {
-            const movieParams = `${commonParams}&sort_by=primary_release_date.desc&primary_release_date.lte=${today}`;
+            // Antes: sort_by=primary_release_date.desc (o mais recente primeiro).
+            // Agora o TMDB devolve os mais bem avaliados — esse é o pool de
+            // candidatos que depois é reordenado pela régua em lib/score.ts
+            const movieParams = `${commonParams}&sort_by=vote_average.desc&primary_release_date.lte=${today}`;
             moviePromise = fetch(`${API_BASE_URL}/discover/movie?${movieParams}${filterParams}`, { referrerPolicy: 'no-referrer' }).then(res => res.json());
         }
         if (typeFilter !== 'Movie') {
-            const seriesParams = `${commonParams}&sort_by=first_air_date.desc&first_air_date.lte=${today}`;
+            const seriesParams = `${commonParams}&sort_by=vote_average.desc&first_air_date.lte=${today}`;
             seriesPromise = fetch(`${API_BASE_URL}/discover/tv?${seriesParams}${filterParams}`, { referrerPolicy: 'no-referrer' }).then(res => res.json());
         }
 
@@ -449,16 +453,11 @@ export const useGroselhinhas = () => {
 
             const transformed = combined.map(item => transformTmdbItem(item, false, allGenres));
             
-            transformed.sort((a, b) => {
-              if (a.releaseDate && b.releaseDate) {
-                return b.releaseDate.localeCompare(a.releaseDate);
-              }
-              if (!a.releaseDate) return 1;
-              if (!b.releaseDate) return -1;
-              return 0;
-            });
+            // Ordem provisoria usando a nota do TMDB. Quando as notas reais do
+            // IMDb e do Rotten Tomatoes chegarem, a lista e reordenada de novo.
+            const ordenados = ordenarPorScore(transformed);
 
-            setMovies(transformed);
+            setMovies(ordenados);
             // Fix: Explicitly type prevMap to avoid "unknown" inference errors on line 350
             setAllLoadedMovies((prevMap: Map<number, Movie>) => {
                 const newMap = new Map<number, Movie>(prevMap);
@@ -561,60 +560,56 @@ export const useGroselhinhas = () => {
 
   }, [movies, isWatchlistMode, isWatchedMode, isNotInterestedMode]);
 
-    // Effect to enrich movies with real IMDb ratings
+    // Effect: busca as notas agregadas (IMDb + Rotten Tomatoes) e reordena a lista.
+    // As notas vem da Edge Function `ratings`, que fala com a OMDb usando uma
+    // chave que fica no servidor. Antes isso era feito direto do navegador
+    // contra imdbapi.dev, um servico nao-oficial, e so trazia a nota do IMDb.
     useEffect(() => {
-        const enrichMoviesWithImdbRatings = async () => {
+        const enriquecerComNotas = async () => {
             const moviesToEnrich = movies.filter(m => !m.imdbRatingFetched && m.imdbId);
             if (moviesToEnrich.length === 0) return;
 
             const fetchingIds = new Set(moviesToEnrich.map(m => m.id));
+            // Marca como buscado antes da chamada para nao entrar em laco.
             setMovies(currentMovies =>
                 currentMovies.map(m =>
                     fetchingIds.has(m.id) ? { ...m, imdbRatingFetched: true } : m
                 )
             );
 
-            const ratingPromises = moviesToEnrich.map(movie =>
-                fetch(`https://imdbapi.dev/v1/titles/${movie.imdbId}`, { referrerPolicy: 'no-referrer' })
-                    .then(res => res.ok ? res.json() : null)
-                    .then(data => ({
-                        id: movie.id,
-                        imdbRating: data?.rating?.average || null,
-                    }))
-                    .catch(err => {
-                        console.error(`Failed to fetch IMDb rating for ${movie.id}`, err);
-                        return { id: movie.id, imdbRating: null };
-                    })
+            const notasPorImdbId = await buscarNotas(
+                moviesToEnrich.map(m => m.imdbId).filter((id): id is string => Boolean(id))
             );
 
-            const results = await Promise.all(ratingPromises);
-            const ratingMap = new Map<number, number>();
-            results.forEach(res => {
-                if (res.imdbRating !== null) {
-                    ratingMap.set(res.id, res.imdbRating);
-                }
-            });
-
-            const updateMovieWithRating = (movie: Movie): Movie => {
-                 const newRating = ratingMap.get(movie.id);
-                 return {
+            const aplicarNotas = (movie: Movie): Movie => {
+                const notas = movie.imdbId ? notasPorImdbId[movie.imdbId] : undefined;
+                if (!notas) return { ...movie, imdbRatingFetched: true };
+                return {
                     ...movie,
-                    ratings: newRating ? { ...movie.ratings, imdb: newRating } : movie.ratings,
+                    ratings: {
+                        ...movie.ratings,
+                        imdb: notas.imdb ?? movie.ratings.imdb,
+                        rottenTomatoes: notas.rottenTomatoes ?? undefined,
+                        metacritic: notas.metacritic ?? undefined,
+                    },
                     imdbRatingFetched: true,
                 };
             };
 
+            // Com as notas reais em maos, a lista e reordenada pela regua
+            // definida em lib/score.ts. Esse e o passo que o app nao tinha.
             setMovies(currentMovies =>
-                currentMovies.map(m => fetchingIds.has(m.id) ? updateMovieWithRating(m) : m)
+                ordenarPorScore(
+                    currentMovies.map(m => fetchingIds.has(m.id) ? aplicarNotas(m) : m)
+                )
             );
 
             setAllLoadedMovies((currentCache: Map<number, Movie>) => {
                 const newCache = new Map<number, Movie>(currentCache);
-                // Explicit type for fetchingIds iterator to avoid unknown id error
                 fetchingIds.forEach((id: number) => {
                     const movie = newCache.get(id);
                     if (movie) {
-                        newCache.set(id, updateMovieWithRating(movie));
+                        newCache.set(id, aplicarNotas(movie));
                     }
                 });
                 return newCache;
@@ -622,7 +617,7 @@ export const useGroselhinhas = () => {
         };
 
         if (!isWatchlistMode && !isWatchedMode && !isNotInterestedMode && movies.length > 0) {
-            enrichMoviesWithImdbRatings();
+            enriquecerComNotas();
         }
     }, [movies, isWatchlistMode, isWatchedMode, isNotInterestedMode]);
 
