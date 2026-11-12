@@ -31,6 +31,10 @@ export const buscarNotas = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // O gateway do Supabase aceita a chave pelo header `apikey`. Os dois
+        // vao juntos porque chaves no formato novo (sb_publishable_...) nao
+        // sao JWT e nao passam pela verificacao legada de JWT.
+        apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({ imdbIds }),
