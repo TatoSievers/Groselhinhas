@@ -7,7 +7,12 @@
 //   supabase secrets set OMDB_API_KEY=sua_chave
 //   supabase functions deploy ratings
 
-const OMDB_URL = 'https://www.omdbapi.com/';
+// HTTP, nao HTTPS, de proposito: a OMDb reserva SSL para contas pagas e
+// responde 302 redirecionando HTTPS -> HTTP. O Deno recusa seguir um
+// redirecionamento que rebaixa o protocolo, entao a chamada morria em
+// silencio. A chave trafega em claro, o que e aceitavel aqui: e uma chave
+// gratuita de notas publicas de filme, usada de servidor para servidor.
+const OMDB_URL = 'http://www.omdbapi.com/';
 
 // A conta gratuita da OMDb permite 1.000 chamadas por dia, e cada título
 // custa uma chamada. O teto por requisição evita queimar a cota de uma vez.
@@ -89,25 +94,40 @@ Deno.serve(async (req) => {
       try {
         const url = `${OMDB_URL}?i=${id}&apikey=${apiKey}`;
         const res = await fetch(url);
-        if (!res.ok) return [id, null] as const;
+        if (!res.ok) {
+          const corpo = await res.text().catch(() => '');
+          const motivo = `HTTP ${res.status} ${res.statusText} ${corpo.slice(0, 200)}`.trim();
+          console.error(`OMDb falhou em ${id}: ${motivo}`);
+          return [id, null, motivo] as const;
+        }
 
         const data = await res.json();
         if (data?.Response === 'False') {
           // Resposta mais comum aqui: "Daily request limit reached!"
-          console.warn(`OMDb recusou ${id}: ${data?.Error}`);
-          return [id, null] as const;
+          const motivo = String(data?.Error ?? 'recusado sem motivo');
+          console.warn(`OMDb recusou ${id}: ${motivo}`);
+          return [id, null, motivo] as const;
         }
-        return [id, extrairNotas(data)] as const;
+        return [id, extrairNotas(data), null] as const;
       } catch (e) {
-        console.error(`Falha ao buscar ${id}:`, e);
-        return [id, null] as const;
+        const motivo = e instanceof Error ? e.message : String(e);
+        console.error(`Falha ao buscar ${id}: ${motivo}`);
+        return [id, null, motivo] as const;
       }
     })
   );
 
   const ratings: Record<string, Notas> = {};
-  for (const [id, notas] of resultados) {
+  const problemas: string[] = [];
+  for (const [id, notas, motivo] of resultados) {
     if (notas) ratings[id] = notas;
+    else if (motivo) problemas.push(`${id}: ${motivo}`);
+  }
+
+  // Quando nada volta, o motivo vai junto na resposta em vez de ficar so no
+  // log. Assim o painel de Test do Supabase ja mostra o que deu errado.
+  if (Object.keys(ratings).length === 0 && problemas.length > 0) {
+    return json({ ratings, debug: problemas });
   }
 
   return json({ ratings });
