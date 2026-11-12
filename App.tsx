@@ -10,7 +10,6 @@ import { MovieCardSkeleton } from './components/MovieCardSkeleton';
 import { MovieDetailsModal } from './components/MovieDetailsModal';
 import { ShareModal } from './components/ShareModal';
 import { AuthModal } from './components/AuthModal';
-import { ChatAssistant } from './components/ChatAssistant';
 import { Movie } from './types';
 import { supabase } from './supabase';
 
@@ -545,11 +544,6 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-
-      <ChatAssistant 
-        onMovieClick={setSelectedMovie} 
-        searchMovieByTitle={searchMovieByTitle} 
-      />
     </div>
   );
 };

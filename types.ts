@@ -13,7 +13,9 @@ export interface Person {
 }
 
 export interface Ratings {
-  imdb: number; // 0-10
+  imdb: number;              // 0-10, vindo do IMDb
+  rottenTomatoes?: number;   // 0-100, percentual do Tomatometer
+  metacritic?: number;       // 0-100, Metascore
 
   // Review URLs
   imdbUrl: string;
